@@ -66,15 +66,39 @@ class ProductResource extends Resource
                 Toggle::make('is_featured')->label('Produk Unggulan')->inline(),
                 Toggle::make('is_active')->label('Aktif')->default(true)->inline(),
                 Textarea::make('description')->label('Deskripsi')->rows(3)->columnSpanFull(),
+
+                // ── FIX UTAMA: tambah disk('public') supaya file tersimpan
+                //    di storage/app/public/products/ dan bisa diakses via URL
                 FileUpload::make('image')
-                    ->label('Upload Foto')
+                    ->label('Upload Foto (kosongkan jika tidak ingin ganti)')
                     ->image()
+                    ->disk('public')
                     ->directory('products')
-                    ->imageEditor(),
+                    ->deletable(false)
+                    ->imageEditor()
+                    ->afterStateHydrated(function (FileUpload $component, $state) {
+                        // Paksa kosong — hindari bug "Waiting for size" di Windows
+                        $component->state(null);
+                    })
+                    ->afterStateUpdated(function (Set $set, $state) {
+                        if (! $state) return;
+                        $filename = is_array($state) ? array_key_first($state) : $state;
+                        if ($filename) {
+                            $set('image_url', '/storage/products/' . $filename);
+                        }
+                    })
+                    ->helperText(fn ($record) => $record?->image
+                        ? new \Illuminate\Support\HtmlString(
+                            '<img src="' . asset('storage/' . $record->image) . '" style="max-height:120px;margin-top:8px;border-radius:6px">'
+                        )
+                        : 'Belum ada foto'
+                    ),
+
                 TextInput::make('image_url')
                     ->label('Atau URL Gambar Eksternal')
                     ->url()
                     ->placeholder('https://...'),
+
                 TextInput::make('sort_order')->label('Urutan')->numeric()->default(0),
             ])->columns(2),
 
@@ -101,10 +125,11 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
+                // Tidak diubah — sudah berjalan dengan baik
                 ImageColumn::make('image_url')
                     ->label('Foto')
                     ->size(60)
-                    ->defaultImageUrl('https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=100'),
+                    ->defaultImageUrl(fn ($record) => $record->image_url),
                 TextColumn::make('name')->label('Nama')->searchable()->limit(35),
                 TextColumn::make('category.name')->label('Kategori')->badge(),
                 TextColumn::make('jenis_label')->label('Jenis'),

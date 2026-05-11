@@ -46,10 +46,27 @@ class CategoryResource extends Resource
                 ->label('Deskripsi')
                 ->rows(2),
             FileUpload::make('image')
-                ->label('Foto Kategori')
+                ->label('Foto Kategori (kosongkan jika tidak ingin ganti)')
                 ->image()
+                ->disk('public')
                 ->directory('categories')
-                ->imageEditor(),
+                ->imageEditor()
+                ->afterStateHydrated(function (FileUpload $component) {
+                    $component->state(null);
+                })
+                ->afterStateUpdated(function (Set $set, $state) {
+                    if (! $state) return;
+                    $filename = is_array($state) ? array_key_first($state) : $state;
+                    if ($filename) {
+                        $set('image_url', '/storage/categories/' . $filename);
+                    }
+                })
+                ->helperText(fn ($record) => $record?->image
+                    ? new \Illuminate\Support\HtmlString(
+                        '<img src="' . asset('storage/' . $record->image) . '" style="max-height:120px;margin-top:8px;border-radius:6px">'
+                    )
+                    : 'Belum ada foto'
+                ),
             TextInput::make('image_url')
                 ->label('Atau URL Gambar Eksternal')
                 ->url()
@@ -71,7 +88,9 @@ class CategoryResource extends Resource
                 ImageColumn::make('image_url')
                     ->label('Foto')
                     ->size(60)
-                    ->defaultImageUrl('https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=100'),
+                    ->defaultImageUrl(fn ($record) => $record->image_url
+                        ?? ($record->image ? asset('storage/' . $record->image) : null)
+                    ),
                 TextColumn::make('name')->label('Nama')->searchable(),
                 TextColumn::make('slug')->label('Slug'),
                 TextColumn::make('description')->label('Deskripsi')->limit(40),

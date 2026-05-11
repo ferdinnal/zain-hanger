@@ -26,7 +26,8 @@
             </div>
 
             {{-- Info Produk --}}
-            <div x-data="productDetail({{ $product->priceTiers->toJson() }})">
+            <div x-data="productDetail({{ $product->priceTiers->toJson() }}, {{ $product->id }})">
+
                 {{-- Badge --}}
                 <div class="flex gap-2 mb-4 flex-wrap">
                     <span class="text-xs font-bold px-3 py-1 rounded-full" style="background: var(--secondary); color: var(--primary)">
@@ -59,21 +60,38 @@
                     <p class="mb-6" style="color: var(--text-muted)">{{ $product->description }}</p>
                 @endif
 
-                {{-- Harga Tier --}}
-                <div class="mb-6 p-5 rounded-xl" style="background: var(--bg-color); border: 1px solid #e5e7eb;">
-                    <h3 class="text-sm font-bold mb-3" style="color: var(--text-muted)">TABEL HARGA</h3>
-                    <div class="space-y-2">
-                        @foreach($product->priceTiers as $tier)
-                        <div class="flex justify-between items-center text-sm py-1 border-b border-gray-100">
-                            <span style="color: var(--text-muted)">
-                                {{ number_format($tier->min_qty, 0, ',', '.') }}
-                                {{ $tier->max_qty ? '– ' . number_format($tier->max_qty, 0, ',', '.') : '+' }} pcs
-                            </span>
-                            <span class="font-bold" style="color: var(--primary)">
-                                Rp {{ number_format($tier->price, 0, ',', '.') }}/pcs
-                            </span>
+                {{-- Harga Grosir --}}
+                <div class="mb-6 rounded-xl overflow-hidden" style="border: 2px solid var(--secondary);">
+                    <div class="px-5 py-3 flex items-center gap-2" style="background: var(--secondary);">
+                        <span class="text-lg">🏷️</span>
+                        <h3 class="font-bold" style="color: var(--primary)">Harga Grosir — Makin Banyak Makin Murah!</h3>
+                    </div>
+                    <div class="divide-y divide-gray-100">
+                        @foreach($product->priceTiers->sortBy('min_qty') as $i => $tier)
+                        <div class="flex justify-between items-center px-5 py-3"
+                             style="{{ $i === 0 ? 'background: var(--bg-color);' : '' }}">
+                            <div class="flex items-center gap-2">
+                                @if($i === 0)
+                                    <span class="text-xs font-bold px-2 py-1 rounded-full" style="background: var(--primary); color: white;">ECERAN</span>
+                                @else
+                                    <span class="text-xs font-bold px-2 py-1 rounded-full" style="background: var(--secondary); color: var(--primary);">GROSIR</span>
+                                @endif
+                                <span class="text-sm" style="color: var(--text-muted);">
+                                    {{ number_format($tier->min_qty, 0, ',', '.') }}
+                                    {{ $tier->max_qty ? '– ' . number_format($tier->max_qty, 0, ',', '.') : '+' }} pcs
+                                </span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-base font-bold" style="color: var(--primary)">
+                                    Rp {{ number_format($tier->price, 0, ',', '.') }}
+                                </span>
+                                <span class="text-xs" style="color: var(--text-muted)">/pcs</span>
+                            </div>
                         </div>
                         @endforeach
+                    </div>
+                    <div class="px-5 py-3 text-xs" style="background: #fffbeb; color: var(--text-muted); border-top: 1px dashed var(--secondary);">
+                        💡 Harga otomatis menyesuaikan jumlah order. Input qty di bawah untuk melihat total harga.
                     </div>
                 </div>
 
@@ -103,7 +121,7 @@
                         <span class="text-white font-semibold" x-text="qty + ' pcs'"></span>
                     </div>
                     <div class="border-t border-white/20 pt-3 mt-3 flex justify-between items-center">
-                        <span class="text-white font-bold">Total</span>
+                        <span class="text-white font-bold">Total Estimasi</span>
                         <span class="text-2xl font-bold" style="color: var(--secondary)" x-text="formatRupiah(totalPrice)"></span>
                     </div>
                     <div class="mt-2">
@@ -113,20 +131,34 @@
 
                 {{-- Buttons --}}
                 <div class="flex flex-col gap-3">
-                    <button @click="orderViaWA()" class="btn-wa text-base py-4" style="border-radius: var(--radius-md);">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                        </svg>
-                        Pesan via WhatsApp
+                    {{-- Pesan Sekarang (simpan ke DB + buka WA) --}}
+                    <button @click="pesanSekarang()"
+                            :disabled="loading"
+                            class="btn text-base py-4 w-full justify-center text-white"
+                            style="background: #25d366; border-radius: var(--radius-md);">
+                        <span x-show="!loading" class="flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                            </svg>
+                            Pesan Sekarang
+                        </span>
+                        <span x-show="loading">Memproses...</span>
                     </button>
 
-                    <button @click="addToCart()" class="btn text-base py-4 w-full justify-center"
+                    {{-- Tambah ke Keranjang --}}
+                    <button @click="addToCart()"
+                            class="btn text-base py-4 w-full justify-center"
                             style="border: 2px solid var(--primary); color: var(--primary); border-radius: var(--radius-md);"
                             onmouseover="this.style.background='var(--primary)';this.style.color='white'"
                             onmouseout="this.style.background='transparent';this.style.color='var(--primary)'">
                         🛒 Tambah ke Keranjang
                     </button>
                 </div>
+
+                {{-- Info --}}
+                <p class="text-xs mt-4 text-center" style="color: var(--text-muted)">
+                    Klik <strong>Pesan Sekarang</strong> → order tercatat otomatis → WhatsApp terbuka untuk konfirmasi
+                </p>
 
             </div>
         </div>
@@ -151,13 +183,15 @@
 
 @push('scripts')
 <script>
-function productDetail(priceTiers) {
+function productDetail(priceTiers, productId) {
     return {
         priceTiers,
+        productId,
         qty: 1,
         pricePerUnit: 0,
         totalPrice: 0,
         tierLabel: '',
+        loading: false,
 
         init() { this.calcPrice(); },
 
@@ -169,9 +203,9 @@ function productDetail(priceTiers) {
                 if (qty >= t.min_qty && (t.max_qty === null || qty <= t.max_qty)) tier = t;
             }
             this.pricePerUnit = tier ? tier.price : 0;
-            this.totalPrice   = this.pricePerUnit * qty;
+            this.totalPrice   = this.pricePerUnit * parseInt(this.qty || 1);
             this.tierLabel    = tier
-                ? `Tier: ${tier.min_qty.toLocaleString('id')}${tier.max_qty ? '–' + tier.max_qty.toLocaleString('id') : '+'} pcs`
+                ? `Tier ${tier.min_qty.toLocaleString('id')}${tier.max_qty ? '–' + tier.max_qty.toLocaleString('id') : '+'} pcs`
                 : '';
         },
 
@@ -182,10 +216,60 @@ function productDetail(priceTiers) {
             return 'Rp ' + parseInt(val).toLocaleString('id-ID');
         },
 
-        orderViaWA() {
-            const waNumber = '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}';
-            const message = `Halo {{ setting('site_name', 'Zain Hanger') }}, saya ingin memesan:\n\n📦 *{{ $product->name }}*\n{{ $product->kepala_label ? 'Kepala: ' . $product->kepala_label . '\n' : '' }}{{ $product->jenis_label ? 'Jenis: ' . $product->jenis_label . '\n' : '' }}Qty: ${this.qty} pcs\nHarga: ${this.formatRupiah(this.pricePerUnit)}/pcs\nTotal: ${this.formatRupiah(this.totalPrice)}\n\nMohon konfirmasinya 🙏`;
-            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        async pesanSekarang() {
+            @guest
+            window.location.href = '{{ route('login') }}';
+            return;
+            @endguest
+
+            this.loading = true;
+
+            try {
+                // 1. Simpan order ke database dulu
+                const res = await fetch('{{ route('orders.quick') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        product_id: this.productId,
+                        qty: parseInt(this.qty),
+                        price_per_unit: this.pricePerUnit,
+                        total: this.totalPrice
+                    })
+                });
+
+                const data = await res.json();
+
+                // 2. Buka WA dengan pesan yang sudah include kode order
+                const waNumber = '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}';
+                const orderCode = data.order_code ?? '-';
+                const message =
+                    `Halo {{ setting('site_name', 'Zain Hanger') }}, saya ingin memesan:\n\n` +
+                    `📦 *{{ $product->name }}*\n` +
+                    `{{ $product->kepala_label ? 'Kepala: ' . $product->kepala_label . '\n' : '' }}` +
+                    `{{ $product->jenis_label ? 'Jenis: ' . $product->jenis_label . '\n' : '' }}` +
+                    `Qty: ${parseInt(this.qty)} pcs\n` +
+                    `Harga: ${this.formatRupiah(this.pricePerUnit)}/pcs\n` +
+                    `Total: ${this.formatRupiah(this.totalPrice)}\n\n` +
+                    `🔖 Kode Order: *${orderCode}*\n` +
+                    `Mohon konfirmasinya 🙏`;
+
+                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+
+            } catch (e) {
+                // Kalau gagal simpan ke DB, tetap buka WA
+                const waNumber = '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}';
+                const message =
+                    `Halo {{ setting('site_name', 'Zain Hanger') }}, saya ingin memesan:\n\n` +
+                    `📦 *{{ $product->name }}*\n` +
+                    `Qty: ${parseInt(this.qty)} pcs\n` +
+                    `Total: ${this.formatRupiah(this.totalPrice)}\n\nMohon konfirmasinya 🙏`;
+                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+            } finally {
+                this.loading = false;
+            }
         },
 
         addToCart() {
@@ -196,7 +280,7 @@ function productDetail(priceTiers) {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                 },
-                body: JSON.stringify({ product_id: {{ $product->id }}, qty: this.qty })
+                body: JSON.stringify({ product_id: this.productId, qty: parseInt(this.qty) })
             })
             .then(r => r.json())
             .then(data => {

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 class Product extends Model
@@ -61,6 +62,37 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    // ── Relasi Gambar & Variasi ─────────────────────────────────
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function primaryImage(): HasOne
+    {
+        return $this->hasOne(ProductImage::class)
+                    ->where('is_primary', true)
+                    ->orderBy('sort_order');
+    }
+
+    public function variantOptions(): HasMany
+    {
+        return $this->hasMany(ProductVariantOption::class)->orderBy('sort_order');
+    }
+
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class)
+                    ->where('is_active', true)
+                    ->orderBy('sort_order');
+    }
+
+    public function hasVariants(): bool
+    {
+        return $this->variants()->exists();
+    }
+
     // ── Accessors ───────────────────────────────────────────────
 
     public function getJenisLabelAttribute(): ?string
@@ -79,6 +111,19 @@ class Product extends Model
             return Storage::url($this->image);
         }
         return $value ?? 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=400';
+    }
+
+    public function getDisplayImageAttribute(): string
+    {
+        if ($this->relationLoaded('primaryImage') && $this->primaryImage) {
+            return $this->primaryImage->url;
+        }
+        if ($this->relationLoaded('images') && $this->images->first()) {
+            return $this->images->first()->url;
+        }
+        if ($this->image) return Storage::url($this->image);
+        return $this->attributes['image_url']
+            ?? 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=400';
     }
 
     // ── Scopes ──────────────────────────────────────────────────
@@ -134,15 +179,15 @@ class Product extends Model
     public function toSnapshot(): array
     {
         return [
-            'id'           => $this->id,
-            'name'         => $this->name,
-            'jenis'        => $this->jenis,
-            'jenis_label'  => $this->jenis_label,
-            'kepala'       => $this->kepala,
-            'kepala_label' => $this->kepala_label,
-            'is_anti_theft'=> $this->is_anti_theft,
-            'image_url'    => $this->image_url,
-            'category'     => $this->category?->name,
+            'id'            => $this->id,
+            'name'          => $this->name,
+            'jenis'         => $this->jenis,
+            'jenis_label'   => $this->jenis_label,
+            'kepala'        => $this->kepala,
+            'kepala_label'  => $this->kepala_label,
+            'is_anti_theft' => $this->is_anti_theft,
+            'image_url'     => $this->display_image,
+            'category'      => $this->category?->name,
         ];
     }
 }

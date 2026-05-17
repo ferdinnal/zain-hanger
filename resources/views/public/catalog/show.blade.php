@@ -14,103 +14,129 @@
             <span>{{ $product->name }}</span>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-start"
+             x-data="productDetail(
+                 {{ $product->priceTiers->toJson() }},
+                 {{ $product->id }},
+                 {{ $variants->toJson() }},
+                 {{ $variantOptions->toJson() }},
+                 {{ $images->toJson() }}
+             )">
 
-            {{-- Gambar Produk --}}
+            {{-- KIRI: GALLERY --}}
             <div>
                 <div style="border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); height: 450px;">
-                    <img src="{{ $product->image_url }}"
-                         alt="{{ $product->name }}"
-                         class="w-full h-full object-cover">
+                    <img :src="activeImage" alt="{{ $product->name }}" class="w-full h-full object-cover transition-all duration-300">
                 </div>
+                @if($images->count() > 1)
+                <div class="flex gap-3 mt-4 flex-wrap">
+                    <template x-for="(img, i) in images" :key="i">
+                        <div @click="activeImage = img.url"
+                             class="cursor-pointer rounded-lg overflow-hidden border-2 transition-all"
+                             :class="activeImage === img.url ? 'border-yellow-500' : 'border-transparent'"
+                             style="width: 72px; height: 72px; flex-shrink: 0;">
+                            <img :src="img.url" class="w-full h-full object-cover">
+                        </div>
+                    </template>
+                </div>
+                @endif
             </div>
 
-            {{-- Info Produk --}}
-            <div x-data="productDetail({{ $product->priceTiers->toJson() }}, {{ $product->id }})">
-
-                {{-- Badge --}}
+            {{-- KANAN: INFO --}}
+            <div>
                 <div class="flex gap-2 mb-4 flex-wrap">
                     <span class="text-xs font-bold px-3 py-1 rounded-full" style="background: var(--secondary); color: var(--primary)">
                         {{ $product->category->name ?? '' }}
                     </span>
-                    @if($product->is_anti_theft)
-                        <span class="text-xs font-bold px-3 py-1 rounded-full" style="background: #ef4444; color: white">
-                            ANTI THEFT
-                        </span>
-                    @endif
                 </div>
 
-                <h1 class="text-3xl font-bold mb-2" style="color: var(--primary)">{{ $product->name }}</h1>
-
-                {{-- Variasi --}}
-                <div class="flex gap-3 flex-wrap mb-6">
-                    @if($product->kepala_label)
-                        <span class="text-sm px-3 py-1 rounded-full border" style="border-color: var(--secondary); color: var(--text-muted)">
-                            {{ $product->kepala_label }}
-                        </span>
-                    @endif
-                    @if($product->jenis_label)
-                        <span class="text-sm px-3 py-1 rounded-full border" style="border-color: var(--secondary); color: var(--text-muted)">
-                            {{ $product->jenis_label }}
-                        </span>
-                    @endif
-                </div>
+                <h1 class="text-3xl font-bold mb-4" style="color: var(--primary)">{{ $product->name }}</h1>
 
                 @if($product->description)
                     <p class="mb-6" style="color: var(--text-muted)">{{ $product->description }}</p>
                 @endif
 
-                {{-- Harga Grosir --}}
+                {{-- PILIH VARIASI --}}
+                @if($variantOptions->count() > 0)
+                <div class="mb-6">
+                    @foreach($variantOptions as $option)
+                    <div class="mb-4">
+                        <label class="block text-xs font-bold mb-2" style="color: var(--text-muted)">
+                            {{ strtoupper($option->name) }}
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($option->values as $val)
+                            <button
+                                @click="selectVariantOption('{{ $option->name }}', '{{ $val->value }}')"
+                                :class="selectedOptions['{{ $option->name }}'] === '{{ $val->value }}' ? 'border-2 font-bold' : 'border'"
+                                :style="selectedOptions['{{ $option->name }}'] === '{{ $val->value }}'
+                                    ? 'border-color: var(--secondary); background: #fffbeb; color: var(--primary);'
+                                    : 'border-color: #ddd; color: var(--text-muted);'"
+                                class="px-4 py-2 rounded-lg text-sm transition-all">
+                                {{ $val->value }}
+                            </button>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endforeach
+                    <div x-show="selectedVariant" class="mt-2 text-xs" style="color: var(--text-muted)">
+                        Dipilih: <span x-text="selectedVariantLabel" class="font-semibold" style="color: var(--primary)"></span>
+                    </div>
+                    <div x-show="!selectedVariant && variantOptions.length > 0" class="mt-2 text-xs text-orange-500">
+                        ⚠️ Pilih semua variasi untuk melihat harga
+                    </div>
+                </div>
+                @endif
+
+                {{-- HARGA GROSIR --}}
                 <div class="mb-6 rounded-xl overflow-hidden" style="border: 2px solid var(--secondary);">
                     <div class="px-5 py-3 flex items-center gap-2" style="background: var(--secondary);">
                         <span class="text-lg">🏷️</span>
                         <h3 class="font-bold" style="color: var(--primary)">Harga Grosir — Makin Banyak Makin Murah!</h3>
                     </div>
                     <div class="divide-y divide-gray-100">
-                        @foreach($product->priceTiers->sortBy('min_qty') as $i => $tier)
-                        <div class="flex justify-between items-center px-5 py-3"
-                             style="{{ $i === 0 ? 'background: var(--bg-color);' : '' }}">
-                            <div class="flex items-center gap-2">
-                                @if($i === 0)
-                                    <span class="text-xs font-bold px-2 py-1 rounded-full" style="background: var(--primary); color: white;">ECERAN</span>
-                                @else
-                                    <span class="text-xs font-bold px-2 py-1 rounded-full" style="background: var(--secondary); color: var(--primary);">GROSIR</span>
-                                @endif
-                                <span class="text-sm" style="color: var(--text-muted);">
-                                    {{ number_format($tier->min_qty, 0, ',', '.') }}
-                                    {{ $tier->max_qty ? '– ' . number_format($tier->max_qty, 0, ',', '.') : '+' }} pcs
-                                </span>
+                        <template x-for="(tier, i) in activePriceTiers" :key="i">
+                            <div class="flex justify-between items-center px-5 py-3"
+                                 :style="i === 0 ? 'background: var(--bg-color);' : ''">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold px-2 py-1 rounded-full"
+                                          :style="i === 0 ? 'background: var(--primary); color: white;' : 'background: var(--secondary); color: var(--primary);'"
+                                          x-text="i === 0 ? 'ECERAN' : 'GROSIR'"></span>
+                                    <span class="text-sm" style="color: var(--text-muted);"
+                                          x-text="tier.min_qty.toLocaleString('id') + (tier.max_qty ? '–' + tier.max_qty.toLocaleString('id') : '+') + ' pcs'"></span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-base font-bold" style="color: var(--primary)"
+                                          x-text="'Rp ' + parseInt(tier.price).toLocaleString('id-ID')"></span>
+                                    <span class="text-xs" style="color: var(--text-muted)">/pcs</span>
+                                </div>
                             </div>
-                            <div class="text-right">
-                                <span class="text-base font-bold" style="color: var(--primary)">
-                                    Rp {{ number_format($tier->price, 0, ',', '.') }}
-                                </span>
-                                <span class="text-xs" style="color: var(--text-muted)">/pcs</span>
-                            </div>
+                        </template>
+                        <div x-show="activePriceTiers.length === 0" class="px-5 py-4 text-sm text-center" style="color: var(--text-muted)">
+                            Pilih variasi untuk melihat harga
                         </div>
-                        @endforeach
                     </div>
                     <div class="px-5 py-3 text-xs" style="background: #fffbeb; color: var(--text-muted); border-top: 1px dashed var(--secondary);">
-                        💡 Harga otomatis menyesuaikan jumlah order. Input qty di bawah untuk melihat total harga.
+                        💡 Harga otomatis menyesuaikan jumlah order. Input qty di bawah untuk melihat total.
                     </div>
                 </div>
 
-                {{-- Input Qty --}}
+                {{-- INPUT QTY --}}
                 <div class="mb-6">
                     <label class="block text-xs font-bold mb-2" style="color: var(--text-muted)">JUMLAH ORDER (PCS)</label>
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-3 border rounded-lg px-4 py-2" style="border-color: #e5e7eb;">
-                            <button @click="decreaseQty()" class="text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" style="color: var(--primary)">−</button>
+                            <button @click="decreaseQty()" class="text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100" style="color: var(--primary)">−</button>
                             <input type="number" x-model="qty" @input="calcPrice()" min="1"
                                    class="w-20 text-center text-lg font-semibold border-none outline-none"
                                    style="color: var(--primary)">
-                            <button @click="increaseQty()" class="text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" style="color: var(--primary)">+</button>
+                            <button @click="increaseQty()" class="text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100" style="color: var(--primary)">+</button>
                         </div>
                         <span class="text-sm" style="color: var(--text-muted)">pcs</span>
                     </div>
                 </div>
 
-                {{-- Kalkulasi Harga --}}
+                {{-- KALKULASI --}}
                 <div class="mb-8 p-5 rounded-xl" style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);">
                     <div class="flex justify-between items-center mb-2">
                         <span class="text-white/80 text-sm">Harga per pcs</span>
@@ -129,11 +155,9 @@
                     </div>
                 </div>
 
-                {{-- Buttons --}}
+                {{-- TOMBOL --}}
                 <div class="flex flex-col gap-3">
-                    {{-- Pesan Sekarang (simpan ke DB + buka WA) --}}
-                    <button @click="pesanSekarang()"
-                            :disabled="loading"
+                    <button @click="pesanSekarang()" :disabled="loading"
                             class="btn text-base py-4 w-full justify-center text-white"
                             style="background: #25d366; border-radius: var(--radius-md);">
                         <span x-show="!loading" class="flex items-center justify-center gap-2">
@@ -145,7 +169,6 @@
                         <span x-show="loading">Memproses...</span>
                     </button>
 
-                    {{-- Tambah ke Keranjang --}}
                     <button @click="addToCart()"
                             class="btn text-base py-4 w-full justify-center"
                             style="border: 2px solid var(--primary); color: var(--primary); border-radius: var(--radius-md);"
@@ -155,11 +178,9 @@
                     </button>
                 </div>
 
-                {{-- Info --}}
                 <p class="text-xs mt-4 text-center" style="color: var(--text-muted)">
-                    Klik <strong>Pesan Sekarang</strong> → order tercatat otomatis → WhatsApp terbuka untuk konfirmasi
+                    Klik <strong>Pesan Sekarang</strong> → order tercatat → WhatsApp terbuka untuk konfirmasi
                 </p>
-
             </div>
         </div>
 
@@ -183,116 +204,103 @@
 
 @push('scripts')
 <script>
-function productDetail(priceTiers, productId) {
+function productDetail(defaultTiers, productId, variants, variantOptions, images) {
     return {
-        priceTiers,
-        productId,
-        qty: 1,
-        pricePerUnit: 0,
-        totalPrice: 0,
-        tierLabel: '',
-        loading: false,
+        productId, variants, variantOptions, images, defaultTiers,
+        qty: 1, pricePerUnit: 0, totalPrice: 0, tierLabel: '',
+        loading: false, selectedOptions: {}, selectedVariant: null,
+        activeImage: images.length > 0 ? images[0].url : '',
 
-        init() { this.calcPrice(); },
+        get activePriceTiers() {
+            return this.selectedVariant ? (this.selectedVariant.price_tiers ?? []) : (this.defaultTiers ?? []);
+        },
+
+        get selectedVariantLabel() {
+            if (!this.selectedVariant) return '';
+            return Object.entries(this.selectedVariant.combination).map(([k,v]) => `${k}: ${v}`).join(' | ');
+        },
+
+        init() {
+            this.variantOptions.forEach(opt => {
+                if (opt.values && opt.values.length === 1) {
+                    this.selectedOptions[opt.name] = opt.values[0].value;
+                }
+            });
+            this.matchVariant();
+            this.calcPrice();
+        },
+
+        selectVariantOption(name, value) {
+            this.selectedOptions = { ...this.selectedOptions, [name]: value };
+            this.matchVariant();
+            this.calcPrice();
+        },
+
+        matchVariant() {
+            if (this.variantOptions.length === 0) { this.selectedVariant = null; return; }
+            const allSelected = this.variantOptions.every(opt => this.selectedOptions[opt.name] !== undefined);
+            if (!allSelected) { this.selectedVariant = null; return; }
+            this.selectedVariant = this.variants.find(v =>
+                this.variantOptions.every(opt => v.combination[opt.name] === this.selectedOptions[opt.name])
+            ) ?? null;
+        },
 
         calcPrice() {
             const qty = parseInt(this.qty) || 1;
-            const sorted = [...this.priceTiers].sort((a, b) => a.min_qty - b.min_qty);
+            const tiers = this.activePriceTiers;
+            if (!tiers || tiers.length === 0) { this.pricePerUnit = 0; this.totalPrice = 0; this.tierLabel = ''; return; }
+            const sorted = [...tiers].sort((a,b) => a.min_qty - b.min_qty);
             let tier = sorted[0];
             for (const t of sorted) {
                 if (qty >= t.min_qty && (t.max_qty === null || qty <= t.max_qty)) tier = t;
             }
-            this.pricePerUnit = tier ? tier.price : 0;
-            this.totalPrice   = this.pricePerUnit * parseInt(this.qty || 1);
-            this.tierLabel    = tier
-                ? `Tier ${tier.min_qty.toLocaleString('id')}${tier.max_qty ? '–' + tier.max_qty.toLocaleString('id') : '+'} pcs`
-                : '';
+            this.pricePerUnit = tier ? parseFloat(tier.price) : 0;
+            this.totalPrice   = this.pricePerUnit * qty;
+            this.tierLabel    = tier ? `Tier ${tier.min_qty.toLocaleString('id')}${tier.max_qty ? '–'+tier.max_qty.toLocaleString('id') : '+'} pcs` : '';
         },
 
         increaseQty() { this.qty = parseInt(this.qty) + 1; this.calcPrice(); },
         decreaseQty() { if (parseInt(this.qty) > 1) { this.qty = parseInt(this.qty) - 1; this.calcPrice(); } },
-
-        formatRupiah(val) {
-            return 'Rp ' + parseInt(val).toLocaleString('id-ID');
-        },
+        formatRupiah(val) { return 'Rp ' + parseInt(val || 0).toLocaleString('id-ID'); },
 
         async pesanSekarang() {
-            @guest
-            window.location.href = '{{ route('login') }}';
-            return;
-            @endguest
-
+            @guest window.location.href = '{{ route('login') }}'; return; @endguest
+            if (this.variantOptions.length > 0 && !this.selectedVariant) { alert('Pilih semua variasi terlebih dahulu!'); return; }
             this.loading = true;
-
             try {
-                // 1. Simpan order ke database dulu
                 const res = await fetch('{{ route('orders.quick') }}', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({
-                        product_id: this.productId,
-                        qty: parseInt(this.qty),
-                        price_per_unit: this.pricePerUnit,
-                        total: this.totalPrice
-                    })
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                    body: JSON.stringify({ product_id: this.productId, qty: parseInt(this.qty), price_per_unit: this.pricePerUnit, total: this.totalPrice, variant_label: this.selectedVariantLabel })
                 });
-
                 const data = await res.json();
-
-                // 2. Buka WA dengan pesan yang sudah include kode order
                 const waNumber = '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}';
-                const orderCode = data.order_code ?? '-';
+                const variantText = this.selectedVariant ? '\n' + Object.entries(this.selectedVariant.combination).map(([k,v]) => `${k}: ${v}`).join('\n') : '';
                 const message =
                     `Halo {{ setting('site_name', 'Zain Hanger') }}, saya ingin memesan:\n\n` +
-                    `📦 *{{ $product->name }}*\n` +
-                    `{{ $product->kepala_label ? 'Kepala: ' . $product->kepala_label . '\n' : '' }}` +
-                    `{{ $product->jenis_label ? 'Jenis: ' . $product->jenis_label . '\n' : '' }}` +
+                    `📦 *{{ $product->name }}*` + variantText + '\n' +
                     `Qty: ${parseInt(this.qty)} pcs\n` +
                     `Harga: ${this.formatRupiah(this.pricePerUnit)}/pcs\n` +
                     `Total: ${this.formatRupiah(this.totalPrice)}\n\n` +
-                    `🔖 Kode Order: *${orderCode}*\n` +
-                    `Mohon konfirmasinya 🙏`;
-
+                    `🔖 Kode Order: *${data.order_code ?? '-'}*\nMohon konfirmasinya 🙏`;
                 window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
-
-            } catch (e) {
-                // Kalau gagal simpan ke DB, tetap buka WA
+            } catch(e) {
                 const waNumber = '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}';
-                const message =
-                    `Halo {{ setting('site_name', 'Zain Hanger') }}, saya ingin memesan:\n\n` +
-                    `📦 *{{ $product->name }}*\n` +
-                    `Qty: ${parseInt(this.qty)} pcs\n` +
-                    `Total: ${this.formatRupiah(this.totalPrice)}\n\nMohon konfirmasinya 🙏`;
-                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank');
-            } finally {
-                this.loading = false;
-            }
+                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent('Halo, saya ingin memesan {{ $product->name }}. Mohon konfirmasinya 🙏')}`, '_blank');
+            } finally { this.loading = false; }
         },
 
         addToCart() {
             @auth
+            if (this.variantOptions.length > 0 && !this.selectedVariant) { alert('Pilih semua variasi terlebih dahulu!'); return; }
             fetch('{{ route('cart.add') }}', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({ product_id: this.productId, qty: parseInt(this.qty) })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const badge = document.querySelector('.cart-badge');
-                    if (badge) badge.textContent = data.cart_count;
-                    alert('Produk berhasil ditambahkan ke keranjang!');
-                }
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                body: JSON.stringify({ product_id: this.productId, qty: parseInt(this.qty), variant_id: this.selectedVariant?.id ?? null })
+            }).then(r => r.json()).then(data => {
+                if (data.success) { const badge = document.querySelector('.cart-badge'); if (badge) badge.textContent = data.cart_count; alert('Produk berhasil ditambahkan ke keranjang!'); }
             });
-            @else
-            window.location.href = '{{ route('login') }}';
-            @endauth
+            @else window.location.href = '{{ route('login') }}'; @endauth
         }
     }
 }

@@ -162,7 +162,7 @@
                 <h3 class="font-bold text-lg mb-5" style="color: var(--primary)">Ringkasan Pesanan</h3>
 
                 <div class="space-y-4 mb-5">
-                    @foreach($cartItems as $item)
+                    @foreach($order->items as $item)
                     <div class="flex gap-3 items-start pb-4 border-b border-gray-100">
                         <img src="{{ $item->product->image_url }}" alt="{{ $item->product->name }}"
                              class="w-16 h-16 object-cover rounded-lg flex-shrink-0">
@@ -177,7 +177,7 @@
 
                 <div class="flex justify-between font-bold text-lg pt-2">
                     <span>Total</span>
-                    <span style="color: var(--primary)">{{ $totalFormatted }}</span>
+                    <span style="color: var(--primary)">{{ $order->total_formatted }}</span>
                 </div>
                 <p class="text-xs mt-2" style="color: var(--text-muted)">*Ongkos kirim akan dikonfirmasi admin via WhatsApp</p>
             </div>

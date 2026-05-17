@@ -10,7 +10,7 @@ class OrderController extends Controller
 {
     public function __construct(private OrderService $orderService)
     {
-        $this->middleware('auth');
+        
     }
 
     public function index()

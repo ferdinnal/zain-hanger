@@ -6,7 +6,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ setting('site_name', 'Zain Hanger') }} — {{ $pageTitle ?? 'Premium Wooden Hanger' }}</title>
     <meta name="description" content="{{ setting('site_description', 'Penyedia hanger kayu premium dan perabot berkualitas tinggi') }}">
-
+    <meta name="orders-quick-url" content="{{ route('orders.quick') }}">
+    <meta name="cart-add-url" content="{{ route('cart.add') }}">
+    <meta name="login-url" content="{{ route('login') }}">
+    <meta name="wa-number" content="{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}">
+    <meta name="site-name" content="{{ setting('site_name', 'Zain Hanger') }}">
+    <meta name="is-auth" content="{{ auth()->check() ? '1' : '0' }}">
     {{-- Favicon --}}
     @if(setting('site_favicon'))
         <link rel="icon" href="{{ Storage::url(setting('site_favicon')) }}">

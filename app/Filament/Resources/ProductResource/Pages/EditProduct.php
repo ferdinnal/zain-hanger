@@ -3,10 +3,7 @@
 namespace App\Filament\Resources\ProductResource\Pages;
 
 use App\Filament\Resources\ProductResource;
-use App\Models\ProductVariant;
-use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditProduct extends EditRecord
@@ -15,77 +12,7 @@ class EditProduct extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Action::make('generateKombinasi')
-                ->label('🔀 Generate Kombinasi')
-                ->color('warning')
-                ->requiresConfirmation()
-                ->modalHeading('Generate Kombinasi Variasi')
-                ->modalDescription('Semua kombinasi dibuat otomatis dari opsi variasi. Yang sudah ada tidak akan ditimpa.')
-                ->modalSubmitActionLabel('Ya, Generate!')
-                ->action(function () {
-                    $product = $this->record;
-                    $product->load('variantOptions.values');
-
-                    $options = $product->variantOptions;
-
-                    if ($options->isEmpty()) {
-                        Notification::make()->title('Belum ada opsi variasi!')->warning()->send();
-                        return;
-                    }
-
-                    foreach ($options as $opt) {
-                        if ($opt->values->isEmpty()) {
-                            Notification::make()
-                                ->title("Opsi \"{$opt->name}\" belum punya nilai!")
-                                ->warning()->send();
-                            return;
-                        }
-                    }
-
-                    // Susun cartesian product
-                    $combinations = [[]];
-                    foreach ($options as $opt) {
-                        $newCombinations = [];
-                        foreach ($combinations as $existing) {
-                            foreach ($opt->values as $val) {
-                                $newCombinations[] = array_merge($existing, [
-                                    $opt->name => $val->value,
-                                ]);
-                            }
-                        }
-                        $combinations = $newCombinations;
-                    }
-
-                    $existingVariants = ProductVariant::where('product_id', $product->id)->get();
-                    $created = 0;
-                    $skipped = 0;
-
-                    foreach ($combinations as $combination) {
-                        $exists = $existingVariants->contains(
-                            fn($v) => $v->combination == $combination
-                        );
-
-                        if ($exists) { $skipped++; continue; }
-
-                        ProductVariant::create([
-                            'product_id'  => $product->id,
-                            'combination' => $combination,
-                            'is_active'   => true,
-                            'sort_order'  => 0,
-                        ]);
-                        $created++;
-                    }
-
-                    Notification::make()
-                        ->title("✅ {$created} kombinasi dibuat" . ($skipped > 0 ? ", {$skipped} dilewati" : ''))
-                        ->success()->send();
-
-                    $this->redirect(request()->header('Referer'));
-                }),
-
-            DeleteAction::make(),
-        ];
+        return [DeleteAction::make()];
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -112,17 +39,25 @@ class EditProduct extends EditRecord
             'values'     => $opt->values->map(fn($val) => [
                 'id'         => $val->id,
                 'value'      => $val->value,
+                'image'      => $val->image,
                 'sort_order' => $val->sort_order,
             ])->toArray(),
         ])->toArray();
 
         $data['variants'] = $record->variants->map(fn($v) => [
-            'id'          => $v->id,
-            'sku'         => $v->sku,
+            'id'         => $v->id,
+            'sku'        => $v->sku,
             'combination' => $v->combination,
-            'is_active'   => $v->is_active,
-            'sort_order'  => $v->sort_order,
-            'priceTiers'  => $v->priceTiers->map(fn($t) => [
+            'combination_items' => collect($v->combination ?? [])
+                ->map(fn($val, $key) => [
+                    'option_name'  => $key,
+                    'option_value' => $val,
+                ])
+                ->values()
+                ->toArray(),
+            'is_active'  => $v->is_active,
+            'sort_order' => $v->sort_order,
+            'priceTiers' => $v->priceTiers->map(fn($t) => [
                 'id'      => $t->id,
                 'min_qty' => $t->min_qty,
                 'max_qty' => $t->max_qty,
@@ -137,6 +72,25 @@ class EditProduct extends EditRecord
             'price'   => $t->price,
         ])->toArray();
 
+        return $data;
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (isset($data['variants'])) {
+            foreach ($data['variants'] as &$variant) {
+                if (isset($variant['combination_items'])) {
+                    $combination = [];
+                    foreach ($variant['combination_items'] as $item) {
+                        if (!empty($item['option_name']) && !empty($item['option_value'])) {
+                            $combination[$item['option_name']] = $item['option_value'];
+                        }
+                    }
+                    $variant['combination'] = $combination;
+                    unset($variant['combination_items']);
+                }
+            }
+        }
         return $data;
     }
 }

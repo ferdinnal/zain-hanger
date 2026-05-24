@@ -6,9 +6,7 @@ use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -17,7 +15,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
-use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -98,10 +95,12 @@ class ProductResource extends Resource
                     Repeater::make('variantOptions')
                         ->label('')
                         ->relationship()
+                        ->live()
                         ->schema([
                             TextInput::make('name')
                                 ->label('Nama Opsi')
                                 ->required()
+                                ->live()
                                 ->placeholder('Ukuran / Warna / Hook')
                                 ->columnSpan(2),
                             TextInput::make('sort_order')
@@ -111,10 +110,12 @@ class ProductResource extends Resource
                             Repeater::make('values')
                                 ->label('Nilai Pilihan')
                                 ->relationship()
+                                ->live()
                                 ->schema([
                                     TextInput::make('value')
                                         ->label('Nilai')
                                         ->required()
+                                        ->live()
                                         ->placeholder('Dewasa / Natural / Hook Gold 10cm')
                                         ->columnSpan(2),
                                     FileUpload::make('image')
@@ -139,80 +140,7 @@ class ProductResource extends Resource
                 ]),
 
             Section::make('Kombinasi Variasi & Harga')
-                ->description('Klik "🔀 Generate Kombinasi" untuk buat otomatis dari opsi variasi di atas, lalu atur harga per tier.')
-                ->headerActions([
-                    FormAction::make('generateKombinasi')
-                        ->label('🔀 Generate Kombinasi')
-                        ->color('warning')
-                        ->requiresConfirmation()
-                        ->modalHeading('Generate Kombinasi Variasi')
-                        ->modalDescription('Semua kombinasi dibuat otomatis dari opsi variasi. Yang sudah ada tidak akan ditimpa.')
-                        ->modalSubmitActionLabel('Ya, Generate!')
-                        ->action(function ($livewire) {
-                            $product = $livewire->record;
-                            $product->load('variantOptions.values');
-
-                            $options = $product->variantOptions;
-
-                            if ($options->isEmpty()) {
-                                Notification::make()
-                                    ->title('Belum ada opsi variasi!')
-                                    ->warning()
-                                    ->send();
-                                return;
-                            }
-
-                            foreach ($options as $opt) {
-                                if ($opt->values->isEmpty()) {
-                                    Notification::make()
-                                        ->title("Opsi \"{$opt->name}\" belum punya nilai!")
-                                        ->warning()
-                                        ->send();
-                                    return;
-                                }
-                            }
-
-                            // Cartesian product
-                            $combinations = [[]];
-                            foreach ($options as $opt) {
-                                $newCombinations = [];
-                                foreach ($combinations as $existing) {
-                                    foreach ($opt->values as $val) {
-                                        $newCombinations[] = array_merge($existing, [
-                                            $opt->name => $val->value,
-                                        ]);
-                                    }
-                                }
-                                $combinations = $newCombinations;
-                            }
-
-                            $existingVariants = ProductVariant::where('product_id', $product->id)->get();
-                            $created = 0;
-                            $skipped = 0;
-
-                            foreach ($combinations as $combination) {
-                                if ($existingVariants->contains(fn($v) => $v->combination == $combination)) {
-                                    $skipped++;
-                                    continue;
-                                }
-
-                                ProductVariant::create([
-                                    'product_id'  => $product->id,
-                                    'combination' => $combination,
-                                    'is_active'   => true,
-                                    'sort_order'  => 0,
-                                ]);
-                                $created++;
-                            }
-
-                            Notification::make()
-                                ->title("✅ {$created} kombinasi dibuat" . ($skipped > 0 ? ", {$skipped} dilewati" : ''))
-                                ->success()
-                                ->send();
-
-                            $livewire->redirect(request()->header('Referer'));
-                        }),
-                ])
+                ->description('Pilih opsi variasi untuk setiap kombinasi, lalu atur harga per tier.')
                 ->schema([
                     Repeater::make('variants')
                         ->label('')
@@ -223,12 +151,38 @@ class ProductResource extends Resource
                                 ->placeholder('ZH-001'),
                             Toggle::make('is_active')->label('Aktif')->default(true)->inline(),
                             TextInput::make('sort_order')->label('Urutan')->numeric()->default(0),
-                            KeyValue::make('combination')
+
+                            Repeater::make('combination_items')
                                 ->label('Kombinasi Variasi')
-                                ->keyLabel('Nama Opsi (cth: Ukuran)')
-                                ->valueLabel('Nilai (cth: Dewasa)')
-                                ->addActionLabel('+ Tambah')
+                                ->schema([
+                                    Select::make('option_name')
+                                        ->label('Nama Opsi')
+                                        ->options(function ($livewire) {
+                                            return collect($livewire->data['variantOptions'] ?? [])
+                                                ->filter(fn($opt) => !empty($opt['name']))
+                                                ->pluck('name', 'name')
+                                                ->toArray();
+                                        })
+                                        ->live()
+                                        ->required(),
+                                    Select::make('option_value')
+                                        ->label('Nilai')
+                                        ->options(function ($get, $livewire) {
+                                            $optionName = $get('option_name');
+                                            if (!$optionName) return [];
+                                            $options = collect($livewire->data['variantOptions'] ?? []);
+                                            $option = $options->firstWhere('name', $optionName);
+                                            return collect($option['values'] ?? [])
+                                                ->filter(fn($v) => !empty($v['value']))
+                                                ->pluck('value', 'value')
+                                                ->toArray();
+                                        })
+                                        ->required(),
+                                ])
+                                ->columns(2)
+                                ->addActionLabel('+ Tambah Opsi')
                                 ->columnSpanFull(),
+
                             Repeater::make('priceTiers')
                                 ->label('Harga Grosir per Tier')
                                 ->relationship()

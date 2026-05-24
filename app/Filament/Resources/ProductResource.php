@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductVariant;
+use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -15,6 +17,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -136,7 +139,80 @@ class ProductResource extends Resource
                 ]),
 
             Section::make('Kombinasi Variasi & Harga')
-                ->description('Buat kombinasi variasi dan atur harga per tier qty.')
+                ->description('Klik "🔀 Generate Kombinasi" untuk buat otomatis dari opsi variasi di atas, lalu atur harga per tier.')
+                ->headerActions([
+                    FormAction::make('generateKombinasi')
+                        ->label('🔀 Generate Kombinasi')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Generate Kombinasi Variasi')
+                        ->modalDescription('Semua kombinasi dibuat otomatis dari opsi variasi. Yang sudah ada tidak akan ditimpa.')
+                        ->modalSubmitActionLabel('Ya, Generate!')
+                        ->action(function ($livewire) {
+                            $product = $livewire->record;
+                            $product->load('variantOptions.values');
+
+                            $options = $product->variantOptions;
+
+                            if ($options->isEmpty()) {
+                                Notification::make()
+                                    ->title('Belum ada opsi variasi!')
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+
+                            foreach ($options as $opt) {
+                                if ($opt->values->isEmpty()) {
+                                    Notification::make()
+                                        ->title("Opsi \"{$opt->name}\" belum punya nilai!")
+                                        ->warning()
+                                        ->send();
+                                    return;
+                                }
+                            }
+
+                            // Cartesian product
+                            $combinations = [[]];
+                            foreach ($options as $opt) {
+                                $newCombinations = [];
+                                foreach ($combinations as $existing) {
+                                    foreach ($opt->values as $val) {
+                                        $newCombinations[] = array_merge($existing, [
+                                            $opt->name => $val->value,
+                                        ]);
+                                    }
+                                }
+                                $combinations = $newCombinations;
+                            }
+
+                            $existingVariants = ProductVariant::where('product_id', $product->id)->get();
+                            $created = 0;
+                            $skipped = 0;
+
+                            foreach ($combinations as $combination) {
+                                if ($existingVariants->contains(fn($v) => $v->combination == $combination)) {
+                                    $skipped++;
+                                    continue;
+                                }
+
+                                ProductVariant::create([
+                                    'product_id'  => $product->id,
+                                    'combination' => $combination,
+                                    'is_active'   => true,
+                                    'sort_order'  => 0,
+                                ]);
+                                $created++;
+                            }
+
+                            Notification::make()
+                                ->title("✅ {$created} kombinasi dibuat" . ($skipped > 0 ? ", {$skipped} dilewati" : ''))
+                                ->success()
+                                ->send();
+
+                            $livewire->redirect(request()->header('Referer'));
+                        }),
+                ])
                 ->schema([
                     Repeater::make('variants')
                         ->label('')

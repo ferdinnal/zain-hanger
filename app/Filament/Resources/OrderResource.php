@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Pages\Settings;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Order;
 use App\Services\OrderService;
@@ -123,11 +124,35 @@ class OrderResource extends Resource
                         app(OrderService::class)->updateStatus($record, $data['status'])
                     ),
                 Tables\Actions\Action::make('open_wa')
-                    ->label('Buka WA')
-                    ->icon('heroicon-o-chat-bubble-left-right')
-                    ->color('success')
-                    ->url(fn (Order $record) => $record->getWaUrl())
-                    ->openUrlInNewTab(),
+    ->label('Buka WA')
+    ->icon('heroicon-o-chat-bubble-left-right')
+    ->color('success')
+    ->url(function (Order $record) {
+        $phone = preg_replace('/[^0-9]/', '', $record->customer_phone);
+        // Pastikan format internasional
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+
+        $firstItem    = $record->items->first();
+        $snapshot     = $firstItem?->product_snapshot ?? [];
+        $variantLabel = $snapshot['variant_label'] ?? null;
+
+        $message =
+            "Halo *{$record->customer_name}*, terima kasih sudah memesan di " .
+            Settings::get('site_name', 'Zain Hanger') . "! 🙏\n\n" .
+            "Berikut detail pesanan Anda:\n" .
+            "🔖 Kode Order: *{$record->order_code}*\n" .
+            "📦 Produk: *{$snapshot['name']}*\n" .
+            ($variantLabel ? "Variasi: {$variantLabel}\n" : '') .
+            "Qty: {$firstItem?->qty} pcs\n" .
+            "Total: *{$record->total_formatted}*\n\n" .
+            "Alamat pengiriman:\n{$record->shipping_address}\n\n" .
+            "Pesanan Anda sedang kami proses. Kami akan segera menghubungi Anda kembali. 😊";
+
+        return 'https://wa.me/' . $phone . '?text=' . urlencode($message);
+    })
+    ->openUrlInNewTab(),
             ]);
     }
 

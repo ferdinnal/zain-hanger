@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Pages\Settings;
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Order;
 use App\Services\OrderService;
@@ -140,7 +139,7 @@ class OrderResource extends Resource
 
         $message =
             "Halo *{$record->customer_name}*, terima kasih sudah memesan di " .
-            Settings::get('site_name', 'Zain Hanger') . "! 🙏\n\n" .
+            Setting::get('site_name', 'Zain Hanger') . "! 🙏\n\n" .
             "Berikut detail pesanan Anda:\n" .
             "🔖 Kode Order: *{$record->order_code}*\n" .
             "📦 Produk: *{$snapshot['name']}*\n" .

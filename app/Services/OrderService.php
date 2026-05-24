@@ -51,8 +51,10 @@ class OrderService
     {
         $product = Product::with('priceTiers', 'category')->findOrFail($data['product_id']);
         $qty     = (int) $data['qty'];
-        $tier    = $product->getPriceForQty($qty);
-        $price   = $tier?->price ?? $data['price_per_unit'];
+
+        // Pakai harga dari frontend yang sudah dihitung berdasarkan variant
+        $price = (float) $data['price_per_unit'];
+        $total = (float) $data['total'];
 
         $order = Order::create([
             'user_id'          => $user->id,
@@ -61,7 +63,7 @@ class OrderService
             'customer_phone'   => $data['recipient_phone'],
             'shipping_address' => $data['recipient_address'],
             'notes'            => $data['recipient_note'] ?? null,
-            'total_amount'     => $price * $qty,
+            'total_amount'     => $total,
             'status'           => 'pending',
             'source'           => 'direct',
         ]);
@@ -75,7 +77,7 @@ class OrderService
             'product_snapshot' => $snapshot,
             'qty'              => $qty,
             'price_per_unit'   => $price,
-            'subtotal'         => $price * $qty,
+            'subtotal'         => $total,
         ]);
 
         $this->notifyAdmins($order->load('items'));

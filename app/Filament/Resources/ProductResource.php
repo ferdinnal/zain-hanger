@@ -233,22 +233,46 @@ class ProductResource extends Resource
                 ->schema([
                     Repeater::make('variants')
                         ->label('')
-                        ->relationship('allVariants')
                         ->schema([
                             TextInput::make('sku')
                                 ->label('SKU (Opsional)')
                                 ->placeholder('ZH-001'),
                             Toggle::make('is_active')->label('Aktif')->default(true)->inline(),
                             TextInput::make('sort_order')->label('Urutan')->numeric()->default(0),
-                            KeyValue::make('combination')
+
+                            Repeater::make('combination_items')
                                 ->label('Kombinasi Variasi')
-                                ->keyLabel('Nama Opsi (cth: Ukuran)')
-                                ->valueLabel('Nilai (cth: Dewasa)')
-                                ->addActionLabel('+ Tambah')
+                                ->schema([
+                                    Select::make('option_name')
+                                        ->label('Nama Opsi')
+                                        ->options(function ($livewire) {
+                                            return collect($livewire->data['variantOptions'] ?? [])
+                                                ->filter(fn($opt) => !empty($opt['name']))
+                                                ->pluck('name', 'name')
+                                                ->toArray();
+                                        })
+                                        ->live()
+                                        ->required(),
+                                    Select::make('option_value')
+                                        ->label('Nilai')
+                                        ->options(function ($get, $livewire) {
+                                            $optionName = $get('option_name');
+                                            if (!$optionName) return [];
+                                            $option = collect($livewire->data['variantOptions'] ?? [])
+                                                ->firstWhere('name', $optionName);
+                                            return collect($option['values'] ?? [])
+                                                ->filter(fn($v) => !empty($v['value']))
+                                                ->pluck('value', 'value')
+                                                ->toArray();
+                                        })
+                                        ->required(),
+                                ])
+                                ->columns(2)
+                                ->addActionLabel('+ Tambah Opsi')
                                 ->columnSpanFull(),
+
                             Repeater::make('priceTiers')
                                 ->label('Harga Grosir per Tier')
-                                ->relationship()
                                 ->schema([
                                     TextInput::make('min_qty')->label('Min Qty')->numeric()->required()->placeholder('1'),
                                     TextInput::make('max_qty')->label('Max Qty')->numeric()->nullable()->placeholder('99'),
@@ -262,7 +286,6 @@ class ProductResource extends Resource
                         ->columns(3)
                         ->addActionLabel('+ Tambah Kombinasi')
                         ->collapsible(),
-                ]),
 
             Section::make('Harga Default')
                 ->description('Isi jika produk tidak punya variasi, atau sebagai harga fallback.')

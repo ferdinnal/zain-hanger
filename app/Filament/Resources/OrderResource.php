@@ -122,13 +122,12 @@ class OrderResource extends Resource
                     ->action(fn (Order $record, array $data) =>
                         app(OrderService::class)->updateStatus($record, $data['status'])
                     ),
-                Tables\Actions\Action::make('open_wa')
+Tables\Actions\Action::make('open_wa')
     ->label('Buka WA')
     ->icon('heroicon-o-chat-bubble-left-right')
     ->color('success')
     ->url(function (Order $record) {
         $phone = preg_replace('/[^0-9]/', '', $record->customer_phone);
-        // Pastikan format internasional
         if (str_starts_with($phone, '0')) {
             $phone = '62' . substr($phone, 1);
         }
@@ -139,7 +138,7 @@ class OrderResource extends Resource
 
         $message =
             "Halo *{$record->customer_name}*, terima kasih sudah memesan di " .
-            Setting::get('site_name', 'Zain Hanger') . "! 🙏\n\n" .
+            setting('site_name', 'Zain Hanger') . "! 🙏\n\n" .
             "Berikut detail pesanan Anda:\n" .
             "🔖 Kode Order: *{$record->order_code}*\n" .
             "📦 Produk: *{$snapshot['name']}*\n" .

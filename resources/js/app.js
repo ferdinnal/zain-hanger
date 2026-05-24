@@ -1,8 +1,6 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
 
-// ── Product Detail Page ─────────────────────────────────────────
-
 window.productDetail = function(defaultTiers, productId, variants, variantOptions, images) {
     return {
         productId, variants, variantOptions, images, defaultTiers,
@@ -10,17 +8,21 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
         loading: false, selectedOptions: {}, selectedVariant: null,
         activeImage: images.length > 0 ? images[0].url : '',
         isLoggedIn: false,
-        loginUrl: '',
-        quickOrderUrl: '',
-        cartUrl: '',
-        csrfToken: '',
-        waNumber: '',
-        siteName: '',
+        loginUrl: '', quickOrderUrl: '', cartUrl: '',
+        csrfToken: '', waNumber: '', siteName: '',
+        showOrderForm: false,
+        recipientName: '', recipientPhone: '', recipientAddress: '', recipientNote: '',
 
         get activePriceTiers() {
-            return this.selectedVariant
-                ? (this.selectedVariant.price_tiers ?? [])
-                : (this.defaultTiers ?? []);
+            if (this.selectedVariant && this.selectedVariant.price_tiers?.length > 0) {
+                return this.selectedVariant.price_tiers;
+            }
+            return this.defaultTiers ?? [];
+        },
+
+        get canOrder() {
+            if (this.variantOptions.length === 0) return true;
+            return this.variantOptions.every(opt => this.selectedOptions[opt.name] !== undefined);
         },
 
         get selectedVariantLabel() {
@@ -30,14 +32,13 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
         },
 
         init() {
-            // Ambil config dari meta tag yang di-render blade
-            this.isLoggedIn  = document.querySelector('meta[name="auth-check"]')?.content === 'true';
-            this.loginUrl    = document.querySelector('meta[name="login-url"]')?.content ?? '';
+            this.isLoggedIn    = document.querySelector('meta[name="auth-check"]')?.content === 'true';
+            this.loginUrl      = document.querySelector('meta[name="login-url"]')?.content ?? '';
             this.quickOrderUrl = document.querySelector('meta[name="quick-order-url"]')?.content ?? '';
-            this.cartUrl     = document.querySelector('meta[name="cart-url"]')?.content ?? '';
-            this.csrfToken   = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-            this.waNumber    = document.querySelector('meta[name="wa-number"]')?.content ?? '';
-            this.siteName    = document.querySelector('meta[name="site-name"]')?.content ?? '';
+            this.cartUrl       = document.querySelector('meta[name="cart-url"]')?.content ?? '';
+            this.csrfToken     = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            this.waNumber      = document.querySelector('meta[name="wa-number"]')?.content ?? '';
+            this.siteName      = document.querySelector('meta[name="site-name"]')?.content ?? '';
 
             this.variantOptions.forEach(opt => {
                 if (opt.values && opt.values.length === 1) {
@@ -91,26 +92,41 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
         decreaseQty() { if (parseInt(this.qty) > 1) { this.qty = parseInt(this.qty) - 1; this.calcPrice(); } },
         formatRupiah(val) { return 'Rp ' + parseInt(val || 0).toLocaleString('id-ID'); },
 
-        async pesanSekarang() {
+        pesanSekarang() {
             if (!this.isLoggedIn) { window.location.href = this.loginUrl; return; }
-            if (this.variantOptions.length > 0 && !this.selectedVariant) {
-                alert('Pilih semua variasi terlebih dahulu!'); return;
-            }
+            if (!this.canOrder) { alert('Pilih semua variasi terlebih dahulu!'); return; }
+            if (this.pricePerUnit === 0) { alert('Harga belum tersedia, hubungi admin.'); return; }
+            this.showOrderForm = true;
+            setTimeout(() => {
+                document.getElementById('order-form-section')?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        },
+
+        async submitOrder() {
+            if (!this.recipientName.trim()) { alert('Nama penerima wajib diisi!'); return; }
+            if (!this.recipientPhone.trim()) { alert('Nomor HP wajib diisi!'); return; }
+            if (!this.recipientAddress.trim()) { alert('Alamat pengiriman wajib diisi!'); return; }
+
             this.loading = true;
             try {
                 const res = await fetch(this.quickOrderUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrfToken },
                     body: JSON.stringify({
-                        product_id:     this.productId,
-                        qty:            parseInt(this.qty),
-                        price_per_unit: this.pricePerUnit,
-                        total:          this.totalPrice,
-                        variant_label:  this.selectedVariantLabel,
+                        product_id:         this.productId,
+                        qty:                parseInt(this.qty),
+                        price_per_unit:     this.pricePerUnit,
+                        total:              this.totalPrice,
+                        variant_label:      this.selectedVariantLabel,
+                        recipient_name:     this.recipientName,
+                        recipient_phone:    this.recipientPhone,
+                        recipient_address:  this.recipientAddress,
+                        recipient_note:     this.recipientNote,
                     })
                 });
                 const data = await res.json();
                 if (data.redirect) { window.location.href = data.redirect; return; }
+
                 const productName = document.querySelector('meta[name="product-name"]')?.content ?? '';
                 const variantText = this.selectedVariant
                     ? '\n' + Object.entries(this.selectedVariant.combination).map(([k,v]) => `${k}: ${v}`).join('\n')
@@ -121,12 +137,19 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
                     `Qty: ${parseInt(this.qty)} pcs\n` +
                     `Harga: ${this.formatRupiah(this.pricePerUnit)}/pcs\n` +
                     `Total: ${this.formatRupiah(this.totalPrice)}\n\n` +
-                    `🔖 Kode Order: *${data.order_code ?? '-'}*\nMohon konfirmasinya 🙏`;
+                    `📋 Data Penerima:\n` +
+                    `Nama: ${this.recipientName}\n` +
+                    `HP: ${this.recipientPhone}\n` +
+                    `Alamat: ${this.recipientAddress}\n` +
+                    (this.recipientNote ? `Catatan: ${this.recipientNote}\n` : '') +
+                    `\n🔖 Kode Order: *${data.order_code ?? '-'}*\nMohon konfirmasinya 🙏`;
+
                 window.open(`https://wa.me/${this.waNumber}?text=${encodeURIComponent(message)}`, '_blank');
+                window.location.href = (document.querySelector('meta[name="home-url"]')?.content ?? '/') + '?order=success';
+
             } catch(e) {
                 console.error('Order error:', e);
-                const productName = document.querySelector('meta[name="product-name"]')?.content ?? '';
-                window.open(`https://wa.me/${this.waNumber}?text=${encodeURIComponent('Halo, saya ingin memesan ' + productName + '. Mohon konfirmasinya 🙏')}`, '_blank');
+                alert('Terjadi kesalahan, silakan coba lagi.');
             } finally {
                 this.loading = false;
             }
@@ -134,9 +157,7 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
 
         addToCart() {
             if (!this.isLoggedIn) { window.location.href = this.loginUrl; return; }
-            if (this.variantOptions.length > 0 && !this.selectedVariant) {
-                alert('Pilih semua variasi terlebih dahulu!'); return;
-            }
+            if (!this.canOrder) { alert('Pilih semua variasi terlebih dahulu!'); return; }
             fetch(this.cartUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': this.csrfToken },
@@ -159,7 +180,6 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
     };
 };
 
-// ── Product Card ────────────────────────────────────────────────
 window.productCard = function(productId, priceTiers) {
     return {
         productId, priceTiers,
@@ -185,7 +205,6 @@ window.productCard = function(productId, priceTiers) {
 window.Alpine = Alpine;
 Alpine.start();
 
-// Navbar scroll
 document.addEventListener('DOMContentLoaded', () => {
     const navbar = document.getElementById('navbar');
     if (navbar) {

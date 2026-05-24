@@ -275,5 +275,23 @@
     </script>
 
     @stack('scripts')
+
+    @if(request('order') === 'success')
+<div id="order-toast"
+     style="position:fixed; top:100px; left:50%; transform:translateX(-50%); z-index:9999;
+            background: var(--primary); color: white; padding: 16px 32px;
+            border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            font-weight: 600; font-size: 15px; text-align: center; min-width: 300px;">
+    ✅ Pesanan berhasil diteruskan ke admin!<br>
+    <span style="font-weight:400; font-size:13px;">Silakan hubungi admin untuk konfirmasi.</span>
+</div>
+<script>
+    setTimeout(() => {
+        const el = document.getElementById('order-toast');
+        if (el) { el.style.transition = 'opacity 0.5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }
+    }, 4000);
+</script>
+@endif
+
 </body>
 </html>

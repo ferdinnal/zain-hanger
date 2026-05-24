@@ -8,10 +8,7 @@ use Illuminate\Http\Request;
 
 class OrderController extends Controller
 {
-    public function __construct(private OrderService $orderService)
-    {
-        
-    }
+    public function __construct(private OrderService $orderService) {}
 
     public function index()
     {
@@ -35,19 +32,20 @@ class OrderController extends Controller
         return view('public.orders.success', compact('order', 'waUrl'));
     }
 
-    /**
-     * Quick order langsung dari product card (tanpa cart)
-     */
     public function quickOrder(Request $request)
     {
         $request->validate([
-            'product_id'     => 'required|exists:products,id',
-            'qty'            => 'required|integer|min:1',
-            'price_per_unit' => 'required|numeric',
-            'total'          => 'required|numeric',
+            'product_id'        => 'required|exists:products,id',
+            'qty'               => 'required|integer|min:1',
+            'price_per_unit'    => 'required|numeric',
+            'total'             => 'required|numeric',
+            'recipient_name'    => 'required|string|max:255',
+            'recipient_phone'   => 'required|string|max:20',
+            'recipient_address' => 'required|string',
+            'recipient_note'    => 'nullable|string',
         ]);
 
-        if (! auth()->check()) {
+        if (!auth()->check()) {
             return response()->json(['redirect' => route('login')]);
         }
 

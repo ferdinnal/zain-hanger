@@ -2,6 +2,14 @@
 @php $pageTitle = $product->name @endphp
 
 @section('content')
+{{-- Meta config untuk app.js --}}
+<meta name="auth-check" content="{{ auth()->check() ? 'true' : 'false' }}">
+<meta name="login-url" content="{{ route('login') }}">
+<meta name="quick-order-url" content="{{ route('orders.quick') }}">
+<meta name="cart-url" content="{{ route('cart.add') }}">
+<meta name="wa-number" content="{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}">
+<meta name="site-name" content="{{ setting('site_name', 'Zain Hanger') }}">
+<meta name="product-name" content="{{ $product->name }}">
 <section class="section-padding" style="padding-top: 120px;">
     <div class="container mx-auto px-5">
 
@@ -201,172 +209,4 @@
 
     </div>
 </section>
-
-@push('scripts')
-<script>
-function productDetail(defaultTiers, productId, variants, variantOptions, images) {
-    return {
-        productId, variants, variantOptions, images, defaultTiers,
-        qty: 1, pricePerUnit: 0, totalPrice: 0, tierLabel: '',
-        loading: false, selectedOptions: {}, selectedVariant: null,
-        activeImage: images.length > 0 ? images[0].url : '',
-        isLoggedIn: {{ auth()->check() ? 'true' : 'false' }},
-        loginUrl: '{{ route('login') }}',
-        quickOrderUrl: '{{ route('orders.quick') }}',
-        cartUrl: '{{ route('cart.add') }}',
-        csrfToken: document.querySelector('meta[name="csrf-token"]').content,
-        waNumber: '{{ preg_replace('/[^0-9]/', '', setting('contact_whatsapp', '6282291409209')) }}',
-        siteName: '{{ setting('site_name', 'Zain Hanger') }}',
-
-        get activePriceTiers() {
-            return this.selectedVariant
-                ? (this.selectedVariant.price_tiers ?? [])
-                : (this.defaultTiers ?? []);
-        },
-
-        get selectedVariantLabel() {
-            if (!this.selectedVariant) return '';
-            return Object.entries(this.selectedVariant.combination)
-                .map(([k, v]) => `${k}: ${v}`).join(' | ');
-        },
-
-        init() {
-            this.variantOptions.forEach(opt => {
-                if (opt.values && opt.values.length === 1) {
-                    this.selectedOptions[opt.name] = opt.values[0].value;
-                }
-            });
-            this.matchVariant();
-            this.calcPrice();
-        },
-
-        selectVariantOption(name, value, imageUrl) {
-            this.selectedOptions = { ...this.selectedOptions, [name]: value };
-            if (imageUrl) this.activeImage = imageUrl;
-            this.matchVariant();
-            this.calcPrice();
-        },
-
-        matchVariant() {
-            if (this.variantOptions.length === 0) { this.selectedVariant = null; return; }
-            const allSelected = this.variantOptions.every(
-                opt => this.selectedOptions[opt.name] !== undefined
-            );
-            if (!allSelected) { this.selectedVariant = null; return; }
-            this.selectedVariant = this.variants.find(v =>
-                this.variantOptions.every(
-                    opt => v.combination[opt.name] === this.selectedOptions[opt.name]
-                )
-            ) ?? null;
-        },
-
-        calcPrice() {
-            const qty = parseInt(this.qty) || 1;
-            const tiers = this.activePriceTiers;
-            if (!tiers || tiers.length === 0) {
-                this.pricePerUnit = 0; this.totalPrice = 0; this.tierLabel = '';
-                return;
-            }
-            const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty);
-            let tier = sorted[0];
-            for (const t of sorted) {
-                if (qty >= t.min_qty && (t.max_qty === null || qty <= t.max_qty)) tier = t;
-            }
-            this.pricePerUnit = tier ? parseFloat(tier.price) : 0;
-            this.totalPrice   = this.pricePerUnit * qty;
-            this.tierLabel    = tier
-                ? `Tier ${tier.min_qty.toLocaleString('id')}${tier.max_qty ? '–' + tier.max_qty.toLocaleString('id') : '+'} pcs`
-                : '';
-        },
-
-        increaseQty() { this.qty = parseInt(this.qty) + 1; this.calcPrice(); },
-        decreaseQty() { if (parseInt(this.qty) > 1) { this.qty = parseInt(this.qty) - 1; this.calcPrice(); } },
-        formatRupiah(val) { return 'Rp ' + parseInt(val || 0).toLocaleString('id-ID'); },
-
-        async pesanSekarang() {
-            if (!this.isLoggedIn) {
-                window.location.href = this.loginUrl;
-                return;
-            }
-            if (this.variantOptions.length > 0 && !this.selectedVariant) {
-                alert('Pilih semua variasi terlebih dahulu!');
-                return;
-            }
-            this.loading = true;
-            try {
-                const res = await fetch(this.quickOrderUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': this.csrfToken
-                    },
-                    body: JSON.stringify({
-                        product_id:     this.productId,
-                        qty:            parseInt(this.qty),
-                        price_per_unit: this.pricePerUnit,
-                        total:          this.totalPrice,
-                        variant_label:  this.selectedVariantLabel,
-                    })
-                });
-                const data = await res.json();
-                if (data.redirect) {
-                    window.location.href = data.redirect;
-                    return;
-                }
-                const variantText = this.selectedVariant
-                    ? '\n' + Object.entries(this.selectedVariant.combination).map(([k,v]) => `${k}: ${v}`).join('\n')
-                    : '';
-                const productName = '{{ $product->name }}';
-                const message =
-                    `Halo ${this.siteName}, saya ingin memesan:\n\n` +
-                    `📦 *${productName}*` + variantText + '\n' +
-                    `Qty: ${parseInt(this.qty)} pcs\n` +
-                    `Harga: ${this.formatRupiah(this.pricePerUnit)}/pcs\n` +
-                    `Total: ${this.formatRupiah(this.totalPrice)}\n\n` +
-                    `🔖 Kode Order: *${data.order_code ?? '-'}*\nMohon konfirmasinya 🙏`;
-                window.open(`https://wa.me/${this.waNumber}?text=${encodeURIComponent(message)}`, '_blank');
-            } catch(e) {
-                console.error('Order error:', e);
-                const msg = encodeURIComponent('Halo, saya ingin memesan {{ $product->name }}. Mohon konfirmasinya 🙏');
-                window.open(`https://wa.me/${this.waNumber}?text=${msg}`, '_blank');
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        addToCart() {
-            if (!this.isLoggedIn) {
-                window.location.href = this.loginUrl;
-                return;
-            }
-            if (this.variantOptions.length > 0 && !this.selectedVariant) {
-                alert('Pilih semua variasi terlebih dahulu!');
-                return;
-            }
-            fetch(this.cartUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': this.csrfToken
-                },
-                body: JSON.stringify({
-                    product_id: this.productId,
-                    qty:        parseInt(this.qty),
-                    variant_id: this.selectedVariant?.id ?? null,
-                })
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const badge = document.querySelector('.cart-badge');
-                    if (badge) badge.textContent = data.cart_count;
-                    alert('Produk berhasil ditambahkan ke keranjang!');
-                }
-            })
-            .catch(e => console.error('Cart error:', e));
-        }
-    }
-}
-</script>
-@endpush
 @endsection

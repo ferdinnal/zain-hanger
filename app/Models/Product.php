@@ -190,4 +190,11 @@ class Product extends Model
             'category'      => $this->category?->name,
         ];
     }
+
+    // Tambah di Product.php
+public function allVariants(): HasMany
+{
+    return $this->hasMany(ProductVariant::class)->orderBy('sort_order');
+}
+
 }

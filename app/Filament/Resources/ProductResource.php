@@ -6,6 +6,7 @@ use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Section;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -141,10 +143,28 @@ class ProductResource extends Resource
 
             Section::make('Kombinasi Variasi & Harga')
                 ->description('Pilih opsi variasi untuk setiap kombinasi, lalu atur harga per tier.')
+                ->headerActions([
+                    FormAction::make('hapusSemuaKombinasi')
+                        ->label('🗑️ Hapus Semua')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Hapus Semua Kombinasi')
+                        ->modalDescription('Semua kombinasi variasi produk ini akan dihapus permanen. Lanjutkan?')
+                        ->modalSubmitActionLabel('Ya, Hapus Semua!')
+                        ->action(function ($livewire) {
+                            $product = $livewire->record;
+                            ProductVariant::where('product_id', $product->id)->delete();
+                            Notification::make()
+                                ->title('Semua kombinasi berhasil dihapus')
+                                ->success()
+                                ->send();
+                            $livewire->redirect(request()->header('Referer'));
+                        }),
+                ])
                 ->schema([
                     Repeater::make('variants')
                         ->label('')
-                        ->relationship('allVariants')
+                        ->relationship()
                         ->schema([
                             TextInput::make('sku')
                                 ->label('SKU (Opsional)')

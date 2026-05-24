@@ -144,7 +144,7 @@ class ProductResource extends Resource
                 ->schema([
                     Repeater::make('variants')
                         ->label('')
-                        ->relationship()
+                        ->relationship('allVariants')
                         ->schema([
                             TextInput::make('sku')
                                 ->label('SKU (Opsional)')

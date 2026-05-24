@@ -20,7 +20,7 @@ class EditProduct extends EditRecord
         $record = $this->record->load([
             'images',
             'variantOptions.values',
-            'variants.priceTiers',
+            'allVariants.priceTiers',
             'priceTiers',
         ]);
 
@@ -44,7 +44,7 @@ class EditProduct extends EditRecord
             ])->toArray(),
         ])->toArray();
 
-        $data['variants'] = $record->variants->map(fn($v) => [
+        $data['variants'] = $record->allVariants->map(fn($v) => [
             'id'         => $v->id,
             'sku'        => $v->sku,
             'combination' => $v->combination,

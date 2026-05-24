@@ -3,7 +3,10 @@
 namespace App\Filament\Resources\ProductResource\Pages;
 
 use App\Filament\Resources\ProductResource;
+use App\Models\ProductVariant;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 
 class EditProduct extends EditRecord
@@ -12,7 +15,77 @@ class EditProduct extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [DeleteAction::make()];
+        return [
+            Action::make('generateKombinasi')
+                ->label('🔀 Generate Kombinasi')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Generate Kombinasi Variasi')
+                ->modalDescription('Semua kombinasi dibuat otomatis dari opsi variasi. Yang sudah ada tidak akan ditimpa.')
+                ->modalSubmitActionLabel('Ya, Generate!')
+                ->action(function () {
+                    $product = $this->record;
+                    $product->load('variantOptions.values');
+
+                    $options = $product->variantOptions;
+
+                    if ($options->isEmpty()) {
+                        Notification::make()->title('Belum ada opsi variasi!')->warning()->send();
+                        return;
+                    }
+
+                    foreach ($options as $opt) {
+                        if ($opt->values->isEmpty()) {
+                            Notification::make()
+                                ->title("Opsi \"{$opt->name}\" belum punya nilai!")
+                                ->warning()->send();
+                            return;
+                        }
+                    }
+
+                    // Susun cartesian product
+                    $combinations = [[]];
+                    foreach ($options as $opt) {
+                        $newCombinations = [];
+                        foreach ($combinations as $existing) {
+                            foreach ($opt->values as $val) {
+                                $newCombinations[] = array_merge($existing, [
+                                    $opt->name => $val->value,
+                                ]);
+                            }
+                        }
+                        $combinations = $newCombinations;
+                    }
+
+                    $existingVariants = ProductVariant::where('product_id', $product->id)->get();
+                    $created = 0;
+                    $skipped = 0;
+
+                    foreach ($combinations as $combination) {
+                        $exists = $existingVariants->contains(
+                            fn($v) => $v->combination == $combination
+                        );
+
+                        if ($exists) { $skipped++; continue; }
+
+                        ProductVariant::create([
+                            'product_id'  => $product->id,
+                            'combination' => $combination,
+                            'is_active'   => true,
+                            'sort_order'  => 0,
+                        ]);
+                        $created++;
+                    }
+
+                    Notification::make()
+                        ->title("✅ {$created} kombinasi dibuat" . ($skipped > 0 ? ", {$skipped} dilewati" : ''))
+                        ->success()->send();
+
+                    $this->redirect(request()->header('Referer'));
+                }),
+
+            DeleteAction::make(),
+        ];
     }
 
     protected function mutateFormDataBeforeFill(array $data): array
@@ -24,7 +97,6 @@ class EditProduct extends EditRecord
             'priceTiers',
         ]);
 
-        // Load images
         $data['images'] = $record->images->map(fn($img) => [
             'id'         => $img->id,
             'image'      => $img->image,
@@ -33,7 +105,6 @@ class EditProduct extends EditRecord
             'is_primary' => $img->is_primary,
         ])->toArray();
 
-        // Load variant options dengan values
         $data['variantOptions'] = $record->variantOptions->map(fn($opt) => [
             'id'         => $opt->id,
             'name'       => $opt->name,
@@ -45,7 +116,6 @@ class EditProduct extends EditRecord
             ])->toArray(),
         ])->toArray();
 
-        // Load variants dengan price tiers
         $data['variants'] = $record->variants->map(fn($v) => [
             'id'          => $v->id,
             'sku'         => $v->sku,
@@ -60,7 +130,6 @@ class EditProduct extends EditRecord
             ])->toArray(),
         ])->toArray();
 
-        // Load default price tiers
         $data['priceTiers'] = $record->priceTiers->map(fn($t) => [
             'id'      => $t->id,
             'min_qty' => $t->min_qty,

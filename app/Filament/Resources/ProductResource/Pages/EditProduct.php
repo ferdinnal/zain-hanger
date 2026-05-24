@@ -79,18 +79,23 @@ class EditProduct extends EditRecord
     {
         if (isset($data['variants'])) {
             foreach ($data['variants'] as &$variant) {
+                $combination = [];
+
                 if (isset($variant['combination_items'])) {
-                    $combination = [];
                     foreach ($variant['combination_items'] as $item) {
                         if (!empty($item['option_name']) && !empty($item['option_value'])) {
                             $combination[$item['option_name']] = $item['option_value'];
                         }
                     }
-                    $variant['combination'] = $combination;
                     unset($variant['combination_items']);
                 }
+
+                // Pastikan combination selalu terisi, minimal array kosong
+                $variant['combination'] = !empty($combination) ? $combination : (object)[];
             }
+            unset($variant);
         }
+
         return $data;
     }
 }

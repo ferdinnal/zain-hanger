@@ -39,8 +39,9 @@ class ViewOrder extends ViewRecord
             Section::make('Item Pesanan')->schema([
                 RepeatableEntry::make('items')->schema([
                     TextEntry::make('product_snapshot.name')->label('Produk'),
-                    TextEntry::make('product_snapshot.kepala_label')->label('Kepala'),
-                    TextEntry::make('product_snapshot.jenis_label')->label('Jenis'),
+                    TextEntry::make('product_snapshot.variant_label')
+                        ->label('Variasi')
+                        ->placeholder('-'),
                     TextEntry::make('qty')->label('Qty')->suffix(' pcs'),
                     TextEntry::make('price_per_unit')
                         ->label('Harga/pcs')

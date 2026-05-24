@@ -176,20 +176,21 @@ class Product extends Model
             ->first();
     }
 
-    public function toSnapshot(): array
-    {
-        return [
-            'id'            => $this->id,
-            'name'          => $this->name,
-            'jenis'         => $this->jenis,
-            'jenis_label'   => $this->jenis_label,
-            'kepala'        => $this->kepala,
-            'kepala_label'  => $this->kepala_label,
-            'is_anti_theft' => $this->is_anti_theft,
-            'image_url'     => $this->display_image,
-            'category'      => $this->category?->name,
-        ];
-    }
+        public function toSnapshot(): array
+        {
+            return [
+                'id'            => $this->id,
+                'name'          => $this->name,
+                'category'      => $this->category?->name,
+                'image_url'     => $this->display_image,
+                // field lama — tetap disimpan untuk backward compat
+                'jenis'         => $this->jenis,
+                'jenis_label'   => $this->jenis_label,
+                'kepala'        => $this->kepala,
+                'kepala_label'  => $this->kepala_label,
+                'is_anti_theft' => $this->is_anti_theft,
+            ];
+}
 
     // Tambah di Product.php
 public function allVariants(): HasMany

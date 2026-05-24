@@ -74,48 +74,49 @@ class Order extends Model
 
     // ── WhatsApp ────────────────────────────────────────────────
 
-    public function buildWaMessage(): string
-    {
-        $template  = Setting::get('wa_order_template', '');
-        $firstItem = $this->items->first();
-        $snapshot  = $firstItem?->product_snapshot ?? [];
+            public function buildWaMessage(): string
+        {
+            $firstItem    = $this->items->first();
+            $snapshot     = $firstItem?->product_snapshot ?? [];
+            $variantLabel = $snapshot['variant_label'] ?? null;
+            $siteName     = Setting::get('site_name', 'Zain Hanger');
 
-        // Multi-item: buat list semua produk
-        if ($this->items->count() > 1) {
-            $itemList = $this->items->map(fn ($item) =>
-                "📦 *{$item->product_snapshot['name']}*\n" .
-                "   Qty: {$item->qty} pcs × Rp " .
-                number_format($item->price_per_unit, 0, ',', '.') .
-                ' = Rp ' . number_format($item->subtotal, 0, ',', '.')
-            )->join("\n");
+            if ($this->items->count() > 1) {
+                $itemList = $this->items->map(fn ($item) =>
+                    "📦 *{$item->product_snapshot['name']}*\n" .
+                    ($item->product_snapshot['variant_label']
+                        ? "   Variasi: {$item->product_snapshot['variant_label']}\n"
+                        : '') .
+                    "   Qty: {$item->qty} pcs × Rp " .
+                    number_format($item->price_per_unit, 0, ',', '.') .
+                    ' = Rp ' . number_format($item->subtotal, 0, ',', '.')
+                )->join("\n");
+
+                return
+                    "Halo {$siteName}, saya *{$this->customer_name}* ingin memesan:\n\n" .
+                    $itemList .
+                    "\n\n*Total: {$this->total_formatted}*\n" .
+                    ($this->shipping_address ? "Alamat: {$this->shipping_address}\n" : '') .
+                    ($this->notes ? "Catatan: {$this->notes}\n" : '') .
+                    "Kode Order: #{$this->order_code}\n" .
+                    "Mohon konfirmasinya 🙏";
+            }
 
             return
-                "Halo " . Setting::get('site_name', 'Zain Hanger') .
-                ", saya *{$this->customer_name}* ingin memesan:\n\n" .
-                $itemList .
-                "\n\n*Total: {$this->total_formatted}*\n" .
-                "Kode Order: #{$this->order_code}\n" .
+                "Halo {$siteName}, saya ingin memesan:\n\n" .
+                "📦 *{$snapshot['name']}*\n" .
+                ($variantLabel ? "Variasi: {$variantLabel}\n" : '') .
+                "Qty: {$firstItem?->qty} pcs\n" .
+                "Harga: Rp " . number_format($firstItem?->price_per_unit ?? 0, 0, ',', '.') . "/pcs\n" .
+                "Total: {$this->total_formatted}\n\n" .
+                "📋 Data Penerima:\n" .
+                "Nama: {$this->customer_name}\n" .
+                "HP: {$this->customer_phone}\n" .
+                ($this->shipping_address ? "Alamat: {$this->shipping_address}\n" : '') .
+                ($this->notes ? "Catatan: {$this->notes}\n" : '') .
+                "\n🔖 Kode Order: *{$this->order_code}*\n" .
                 "Mohon konfirmasinya 🙏";
         }
-
-        $replacements = [
-            '{site_name}'      => Setting::get('site_name', 'Zain Hanger'),
-            '{customer_name}'  => $this->customer_name,
-            '{product_name}'   => $snapshot['name'] ?? '-',
-            '{kepala}'         => $snapshot['kepala_label'] ?? '-',
-            '{jenis}'          => $snapshot['jenis_label'] ?? '-',
-            '{qty}'            => (string) ($firstItem?->qty ?? 0),
-            '{price_per_unit}' => 'Rp ' . number_format($firstItem?->price_per_unit ?? 0, 0, ',', '.'),
-            '{total}'          => $this->total_formatted,
-            '{order_code}'     => $this->order_code,
-        ];
-
-        return str_replace(
-            array_keys($replacements),
-            array_values($replacements),
-            $template
-        );
-    }
 
     public function getWaUrl(): string
     {

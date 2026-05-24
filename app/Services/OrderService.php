@@ -55,19 +55,24 @@ class OrderService
         $price   = $tier?->price ?? $data['price_per_unit'];
 
         $order = Order::create([
-            'user_id'        => $user->id,
-            'customer_name'  => $user->name,
-            'customer_email' => $user->email,
-            'customer_phone' => $user->phone ?? '',
-            'total_amount'   => $price * $qty,
-            'status'         => 'pending',
-            'source'         => 'direct',
+            'user_id'          => $user->id,
+            'customer_name'    => $data['recipient_name'],
+            'customer_email'   => $user->email,
+            'customer_phone'   => $data['recipient_phone'],
+            'shipping_address' => $data['recipient_address'],
+            'notes'            => $data['recipient_note'] ?? null,
+            'total_amount'     => $price * $qty,
+            'status'           => 'pending',
+            'source'           => 'direct',
         ]);
+
+        $snapshot = $product->toSnapshot();
+        $snapshot['variant_label'] = $data['variant_label'] ?? null;
 
         OrderItem::create([
             'order_id'         => $order->id,
             'product_id'       => $product->id,
-            'product_snapshot' => $product->toSnapshot(),
+            'product_snapshot' => $snapshot,
             'qty'              => $qty,
             'price_per_unit'   => $price,
             'subtotal'         => $price * $qty,

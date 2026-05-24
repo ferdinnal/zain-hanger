@@ -286,6 +286,7 @@ class ProductResource extends Resource
                         ->columns(3)
                         ->addActionLabel('+ Tambah Kombinasi')
                         ->collapsible(),
+                ]),
 
             Section::make('Harga Default')
                 ->description('Isi jika produk tidak punya variasi, atau sebagai harga fallback.')

@@ -112,13 +112,21 @@ class ProductResource extends Resource
                                     TextInput::make('value')
                                         ->label('Nilai')
                                         ->required()
-                                        ->placeholder('Dewasa / Natural / Hook Gold 10cm'),
+                                        ->placeholder('Dewasa / Natural / Hook Gold 10cm')
+                                        ->columnSpan(2),
+                                    FileUpload::make('image')
+                                        ->label('Gambar Opsi')
+                                        ->image()
+                                        ->disk('public')
+                                        ->directory('variant-values')
+                                        ->imagePreviewHeight('60')
+                                        ->columnSpan(2),
                                     TextInput::make('sort_order')
                                         ->label('Urutan')
                                         ->numeric()
                                         ->default(0),
                                 ])
-                                ->columns(2)
+                                ->columns(5)
                                 ->addActionLabel('+ Tambah Nilai')
                                 ->columnSpanFull(),
                         ])

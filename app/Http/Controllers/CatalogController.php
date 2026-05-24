@@ -65,8 +65,9 @@ class CatalogController extends Controller
             'id'     => $opt->id,
             'name'   => $opt->name,
             'values' => $opt->values->map(fn($val) => [
-                'id'    => $val->id,
-                'value' => $val->value,
+                'id'        => $val->id,
+                'value'     => $val->value,
+                'image_url' => $val->image_url, // ← tambah ini
             ])->values(),
         ])->values();
 

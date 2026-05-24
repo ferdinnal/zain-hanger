@@ -31,8 +31,12 @@ window.productDetail = function(defaultTiers, productId, variants, variantOption
             this.calcPrice();
         },
 
-        selectVariantOption(name, value) {
+        selectVariantOption(name, value, imageUrl) {
             this.selectedOptions = { ...this.selectedOptions, [name]: value };
+            // Ganti activeImage kalau value ini punya gambar sendiri
+            if (imageUrl) {
+                this.activeImage = imageUrl;
+            }
             this.matchVariant();
             this.calcPrice();
         },

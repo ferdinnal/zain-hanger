@@ -32,24 +32,24 @@
                  {{ json_encode($images) }}
              )">
 
-            {{-- KIRI: GALLERY --}}
-            <div>
-                <div style="border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); height: 450px;">
-                    <img :src="activeImage" alt="{{ $product->name }}" class="w-full h-full object-cover transition-all duration-300">
-                </div>
-                @if(count($images) > 1)
-                <div class="flex gap-3 mt-4 flex-wrap">
-                    <template x-for="(img, i) in images" :key="i">
-                        <div @click="activeImage = img.url"
-                             class="cursor-pointer rounded-lg overflow-hidden border-2 transition-all"
-                             :class="activeImage === img.url ? 'border-yellow-500' : 'border-transparent'"
-                             style="width: 72px; height: 72px; flex-shrink: 0;">
-                            <img :src="img.url" class="w-full h-full object-cover">
-                        </div>
-                    </template>
-                </div>
-                @endif
+        {{-- KIRI: GALLERY --}}
+        <div>
+            <div style="border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-lg); aspect-ratio: 1/1;">
+                <img :src="activeImage" alt="{{ $product->name }}" class="w-full h-full object-cover transition-all duration-300">
             </div>
+            @if(count($images) > 1)
+            <div class="flex gap-3 mt-4 flex-wrap">
+                <template x-for="(img, i) in images" :key="i">
+                    <div @click="activeImage = img.url"
+                        class="cursor-pointer rounded-lg overflow-hidden border-2 transition-all"
+                        :class="activeImage === img.url ? 'border-yellow-500' : 'border-transparent'"
+                        style="width: 72px; height: 72px; flex-shrink: 0;">
+                        <img :src="img.url" class="w-full h-full object-cover">
+                    </div>
+                </template>
+            </div>
+            @endif
+        </div>
 
             {{-- KANAN: INFO --}}
             <div>

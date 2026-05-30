@@ -2,7 +2,7 @@
 <div class="product-card">
 
     {{-- Image - klik ke detail --}}
-    <a href="{{ route('catalog.show', $product->slug) }}" class="block relative" style="height: 250px;">
+    <a href="{{ route('catalog.show', $product->slug) }}" class="block relative" style="aspect-ratio: 1/1; overflow: hidden;">
         <img src="{{ $product->images->first()?->url ?? $product->image_url }}"
              alt="{{ $product->name }}"
              class="w-full h-full object-cover">
